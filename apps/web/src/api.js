@@ -51,5 +51,14 @@ export const api = {
     request('/curriculum/generate', {
       method: 'POST',
       body: JSON.stringify({ studentId })
+    }),
+
+  getNextLesson: (studentId, subject) =>
+    request(`/lessons/next?studentId=${studentId}&subject=${subject}`),
+
+  submitLesson: (lessonId, studentId, answers) =>
+    request(`/lessons/${lessonId}/submit`, {
+      method: 'POST',
+      body: JSON.stringify({ studentId, answers })
     })
 }

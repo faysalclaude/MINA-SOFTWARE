@@ -8,6 +8,7 @@ import { teachersRouter } from './routes/teachers.js'
 import { studentsRouter } from './routes/students.js'
 import { systemRouter } from './routes/system.js'
 import { curriculumRouter } from './routes/curriculum.js'
+import { lessonsRouter } from './routes/lessons.js'
 import { isOllamaRunning, CURRENT_MODEL } from './ai/ollamaClient.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -21,6 +22,7 @@ app.use('/api/teachers', teachersRouter)
 app.use('/api/students', studentsRouter)
 app.use('/api/system', systemRouter)
 app.use('/api/curriculum', curriculumRouter)
+app.use('/api/lessons', lessonsRouter)
 
 // Serve the built web client (apps/web/dist) if present, so a single
 // `npm start` on the server machine serves everything - API and UI - on
