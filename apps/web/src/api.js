@@ -1,6 +1,3 @@
-// All requests go through the same origin (the server serves this app too),
-// so this works whether you're on the server PC itself or another device
-// on the WiFi hitting http://<server-lan-ip>:4000.
 const BASE = '/api'
 
 async function request (path, options = {}) {
@@ -26,9 +23,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name, schoolName, pin })
     }),
-
   listTeachers: () => request('/teachers'),
-
   loginTeacher: (id, pin) =>
     request(`/teachers/${id}/login`, {
       method: 'POST',
@@ -36,17 +31,43 @@ export const api = {
     }),
 
   listStudents: teacherId => request(`/students?teacherId=${teacherId}`),
-
-  addStudent: (teacherId, name, age, grade, paceHint) =>
+  addStudent: (
+    teacherId,
+    name,
+    age,
+    grade,
+    pin,
+    parentName,
+    parentPin,
+    paceHint
+  ) =>
     request('/students', {
       method: 'POST',
-      body: JSON.stringify({ teacherId, name, age, grade, paceHint })
+      body: JSON.stringify({
+        teacherId,
+        name,
+        age,
+        grade,
+        pin,
+        parentName,
+        parentPin,
+        paceHint
+      })
     }),
-
+  loginStudent: (id, pin) =>
+    request(`/students/${id}/login`, {
+      method: 'POST',
+      body: JSON.stringify({ pin })
+    }),
   deleteStudent: id => request(`/students/${id}`, { method: 'DELETE' }),
 
-  getCurriculum: studentId => request(`/curriculum?studentId=${studentId}`),
+  loginParent: (studentId, pin) =>
+    request('/parents/login', {
+      method: 'POST',
+      body: JSON.stringify({ studentId, pin })
+    }),
 
+  getCurriculum: studentId => request(`/curriculum?studentId=${studentId}`),
   generateCurriculum: studentId =>
     request('/curriculum/generate', {
       method: 'POST',
@@ -55,10 +76,39 @@ export const api = {
 
   getNextLesson: (studentId, subject) =>
     request(`/lessons/next?studentId=${studentId}&subject=${subject}`),
-
   submitLesson: (lessonId, studentId, answers) =>
     request(`/lessons/${lessonId}/submit`, {
       method: 'POST',
       body: JSON.stringify({ studentId, answers })
+    }),
+
+  getSpeakingPrompt: (studentId, subject) =>
+    request(`/speaking/prompt?studentId=${studentId}&subject=${subject}`),
+  evaluateSpeaking: (studentId, topicId, phrase, transcript) =>
+    request('/speaking/evaluate', {
+      method: 'POST',
+      body: JSON.stringify({ studentId, topicId, phrase, transcript })
+    }),
+
+  getWritingPrompt: (studentId, subject) =>
+    request(`/writing/prompt?studentId=${studentId}&subject=${subject}`),
+  evaluateWriting: (studentId, topicId, prompt, submission) =>
+    request('/writing/evaluate', {
+      method: 'POST',
+      body: JSON.stringify({ studentId, topicId, prompt, submission })
+    }),
+
+  listMaterials: teacherId => request(`/materials?teacherId=${teacherId}`),
+  addMaterial: async formData => {
+    const res = await fetch(BASE + '/materials', {
+      method: 'POST',
+      body: formData
     })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `Request failed: HTTP ${res.status}`)
+    }
+    return res.json()
+  },
+  deleteMaterial: id => request(`/materials/${id}`, { method: 'DELETE' })
 }

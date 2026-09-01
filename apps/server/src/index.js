@@ -3,12 +3,16 @@ import cors from 'cors'
 import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
-import './db.js' // ensures schema is created on boot
+import './db.js'
 import { teachersRouter } from './routes/teachers.js'
 import { studentsRouter } from './routes/students.js'
+import { parentsRouter } from './routes/parents.js'
 import { systemRouter } from './routes/system.js'
 import { curriculumRouter } from './routes/curriculum.js'
 import { lessonsRouter } from './routes/lessons.js'
+import { materialsRouter } from './routes/materials.js'
+import { speakingRouter } from './routes/speaking.js'
+import { writingRouter } from './routes/writing.js'
 import { isOllamaRunning, CURRENT_MODEL } from './ai/ollamaClient.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -20,13 +24,14 @@ app.use(express.json())
 
 app.use('/api/teachers', teachersRouter)
 app.use('/api/students', studentsRouter)
+app.use('/api/parents', parentsRouter)
 app.use('/api/system', systemRouter)
 app.use('/api/curriculum', curriculumRouter)
 app.use('/api/lessons', lessonsRouter)
+app.use('/api/materials', materialsRouter)
+app.use('/api/speaking', speakingRouter)
+app.use('/api/writing', writingRouter)
 
-// Serve the built web client (apps/web/dist) if present, so a single
-// `npm start` on the server machine serves everything - API and UI - on
-// one port for every device on the network to hit.
 const webDist = path.join(__dirname, '..', '..', 'web', 'dist')
 app.use(express.static(webDist))
 app.get('*', (req, res, next) => {

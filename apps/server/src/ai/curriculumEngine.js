@@ -1,6 +1,7 @@
 import { v4 as uuid } from 'uuid'
 import { db } from '../db.js'
 import { completeJson } from './ollamaClient.js'
+import { buildReferenceContext } from './referenceMaterials.js'
 
 // Korean elementary national curriculum (교육과정) subject set.
 // Grades 1-2 use the "integrated curriculum" (통합교과, 봄/여름/가을/겨울)
@@ -20,7 +21,7 @@ export function subjectsForGrade (grade) {
   return ['korean', 'math', 'science', 'social_studies', 'english']
 }
 
-async function generateTopicsForSubject (subject, age, grade) {
+async function generateTopicsForSubject (subject, age, grade, referenceContext) {
   const label = SUBJECT_LABELS[subject] || subject
 
   const system =
@@ -33,6 +34,7 @@ async function generateTopicsForSubject (subject, age, grade) {
 Produce exactly 8 topics, ordered from most foundational to most advanced for
 this grade level. Each topic must be a distinct, teachable unit a student
 could complete in one sitting.
+${referenceContext || ''}
 
 Respond with ONLY a JSON array in this exact shape, nothing else:
 [
@@ -45,7 +47,10 @@ Respond with ONLY a JSON array in this exact shape, nothing else:
 ]
 "difficulty" must be an integer 1-5, increasing roughly with topic order.`
 
-  const topics = await completeJson(system, user, { temperature: 0.4 })
+  const topics = await completeJson(system, user, {
+    temperature: 0.4,
+    numPredict: 1000
+  })
   if (!Array.isArray(topics) || topics.length === 0) {
     throw new Error(`Model returned no usable topics for subject "${subject}"`)
   }
@@ -66,6 +71,7 @@ export async function generateCurriculumForStudent (studentId) {
 
   const subjects = subjectsForGrade(student.grade)
   const results = []
+  const referenceContext = buildReferenceContext(student.teacher_id)
 
   for (const subject of subjects) {
     console.log(
@@ -77,7 +83,8 @@ export async function generateCurriculumForStudent (studentId) {
       topics = await generateTopicsForSubject(
         subject,
         student.age,
-        student.grade
+        student.grade,
+        referenceContext
       )
     } catch (e) {
       console.error(
@@ -141,17 +148,25 @@ export function getCurriculumForStudent (studentId) {
   return curricula.map(c => {
     const topics = db
       .prepare(
-        `SELECT title, description, competency_code as competencyCode, difficulty
-         FROM curriculum_topics WHERE curriculum_id = ? ORDER BY topic_order ASC`
+        `SELECT ct.title, ct.description, ct.competency_code as competencyCode, ct.difficulty,
+                COALESCE(sm.mastery_score, 0) as masteryScore
+         FROM curriculum_topics ct
+         LEFT JOIN student_mastery sm
+           ON sm.student_id = ? AND sm.competency_code = ct.competency_code
+         WHERE ct.curriculum_id = ? ORDER BY ct.topic_order ASC`
       )
-      .all(c.id)
+      .all(studentId, c.id)
+
+    const masteredCount = topics.filter(t => t.masteryScore >= 80).length
 
     return {
       subject: c.subject,
       subjectLabel: SUBJECT_LABELS[c.subject] || c.subject,
       source: c.source,
       status: c.status,
-      topics
+      topics,
+      masteredCount,
+      totalCount: topics.length
     }
   })
 }

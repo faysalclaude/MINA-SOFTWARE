@@ -38,7 +38,7 @@ export async function listModels () {
  * Runs a single-turn chat completion against the local model.
  * @param {string} systemPrompt
  * @param {string} userPrompt
- * @param {{temperature?: number}} [options]
+ * @param {{temperature?: number, numPredict?: number, numCtx?: number}} [options]
  * @returns {Promise<string>} the model's raw text reply
  */
 export async function complete (systemPrompt, userPrompt, options = {}) {
@@ -57,11 +57,18 @@ export async function complete (systemPrompt, userPrompt, options = {}) {
     body: JSON.stringify({
       model: MODEL,
       stream: false,
-      temperature: options.temperature ?? 0.7,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
-      ]
+      ],
+      options: {
+        temperature: options.temperature ?? 0.7,
+        // Small local models default to a short context/generation length
+        // that's fine for a quiz question but cuts off a real explanation
+        // partway through. Give lesson-style calls more room.
+        num_predict: options.numPredict ?? 800,
+        num_ctx: options.numCtx ?? 4096
+      }
     })
   })
 

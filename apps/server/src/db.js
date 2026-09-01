@@ -28,6 +28,25 @@ db.exec(`
     age INTEGER NOT NULL,
     grade INTEGER NOT NULL,
     pace_hint TEXT NOT NULL DEFAULT 'average',
+    pin TEXT NOT NULL DEFAULT '0000',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS parents (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL UNIQUE REFERENCES students(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    pin TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS reference_materials (
+    id TEXT PRIMARY KEY,
+    teacher_id TEXT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    material_type TEXT NOT NULL, -- 'pdf' | 'doc' | 'text_notes' | 'link'
+    extracted_text TEXT,
+    source_url TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -118,3 +137,15 @@ db.exec(`
 `)
 
 console.log('[DB] Schema ready at', dbPath)
+
+// --- Lightweight migration for existing databases from earlier phases ---
+// (fresh installs already get `pin` from the CREATE TABLE above; this only
+// matters if you're upgrading a database created before Phase 4)
+function ensureColumn (table, column, definition) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all()
+  if (!cols.some(c => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
+    console.log(`[DB] Migrated: added column ${table}.${column}`)
+  }
+}
+ensureColumn('students', 'pin', "TEXT NOT NULL DEFAULT '0000'")
