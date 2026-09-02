@@ -160,7 +160,7 @@ function CreateTeacherForm ({ onCreated, onCancel, showCancel }) {
 }
 
 function TeacherDashboard ({ teacher, onSwitch }) {
-  const [tab, setTab] = useState('roster') // roster | materials
+  const [tab, setTab] = useState('roster') // roster | materials | overview
 
   return (
     <div>
@@ -182,13 +182,22 @@ function TeacherDashboard ({ teacher, onSwitch }) {
       </div>
       <p className='muted'>Logged in as {teacher.name}</p>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div
+        style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}
+      >
         <button
           className={tab === 'roster' ? 'primary' : 'secondary'}
           style={{ width: 'auto', padding: '6px 14px', margin: 0 }}
           onClick={() => setTab('roster')}
         >
           Students
+        </button>
+        <button
+          className={tab === 'overview' ? 'primary' : 'secondary'}
+          style={{ width: 'auto', padding: '6px 14px', margin: 0 }}
+          onClick={() => setTab('overview')}
+        >
+          Class Overview
         </button>
         <button
           className={tab === 'materials' ? 'primary' : 'secondary'}
@@ -200,7 +209,84 @@ function TeacherDashboard ({ teacher, onSwitch }) {
       </div>
 
       {tab === 'roster' && <Roster teacher={teacher} />}
+      {tab === 'overview' && <ClassOverview teacher={teacher} />}
       {tab === 'materials' && <ReferenceMaterials teacher={teacher} />}
+    </div>
+  )
+}
+
+function ClassOverview ({ teacher }) {
+  const [overview, setOverview] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    api
+      .classOverview(teacher.id)
+      .then(setOverview)
+      .catch(e => setError(e.message))
+  }, [teacher.id])
+
+  const colorFor = percent => {
+    if (percent >= 80) return '#166534'
+    if (percent >= 50) return '#92400e'
+    return '#991b1b'
+  }
+
+  return (
+    <div>
+      {error && <div className='error-box'>{error}</div>}
+      {!overview && <p className='muted'>Loading class overview...</p>}
+      {overview && overview.length === 0 && (
+        <p className='muted'>No students yet.</p>
+      )}
+
+      {overview &&
+        overview.map(s => (
+          <div key={s.id} className='card'>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <div>
+                <strong>{s.name}</strong>{' '}
+                <span className='muted'>Grade {s.grade}</span>
+              </div>
+              {s.hasCurriculum ? (
+                <span
+                  style={{ fontWeight: 700, color: colorFor(s.overallPercent) }}
+                >
+                  {s.overallPercent}% overall
+                </span>
+              ) : (
+                <span className='muted'>No curriculum yet</span>
+              )}
+            </div>
+            {s.subjects.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                {s.subjects.map(subj => {
+                  const pct =
+                    subj.totalCount > 0
+                      ? Math.round((subj.masteredCount / subj.totalCount) * 100)
+                      : 0
+                  return (
+                    <div
+                      key={subj.subject}
+                      style={{ fontSize: 13, marginBottom: 4 }}
+                    >
+                      <span className='muted'>{subj.subjectLabel}: </span>
+                      <span style={{ color: colorFor(pct), fontWeight: 600 }}>
+                        {subj.masteredCount}/{subj.totalCount} ({pct}%)
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ))}
     </div>
   )
 }

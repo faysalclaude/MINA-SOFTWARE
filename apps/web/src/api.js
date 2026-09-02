@@ -110,5 +110,14 @@ export const api = {
     }
     return res.json()
   },
-  deleteMaterial: id => request(`/materials/${id}`, { method: 'DELETE' })
+  deleteMaterial: id => request(`/materials/${id}`, { method: 'DELETE' }),
+  generateReport: studentId =>
+    request('/reports/generate', {
+      method: 'POST',
+      body: JSON.stringify({ studentId })
+    }),
+  listReports: studentId => request(`/reports?studentId=${studentId}`),
+
+  classOverview: teacherId =>
+    request(`/analytics/class-overview?teacherId=${teacherId}`)
 }

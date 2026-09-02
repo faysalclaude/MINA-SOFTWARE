@@ -13,6 +13,8 @@ import { lessonsRouter } from './routes/lessons.js'
 import { materialsRouter } from './routes/materials.js'
 import { speakingRouter } from './routes/speaking.js'
 import { writingRouter } from './routes/writing.js'
+import { reportsRouter } from './routes/reports.js'
+import { analyticsRouter } from './routes/analytics.js'
 import { isOllamaRunning, CURRENT_MODEL } from './ai/ollamaClient.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -31,6 +33,8 @@ app.use('/api/lessons', lessonsRouter)
 app.use('/api/materials', materialsRouter)
 app.use('/api/speaking', speakingRouter)
 app.use('/api/writing', writingRouter)
+app.use('/api/reports', reportsRouter)
+app.use('/api/analytics', analyticsRouter)
 
 const webDist = path.join(__dirname, '..', '..', 'web', 'dist')
 app.use(express.static(webDist))
