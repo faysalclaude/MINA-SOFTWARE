@@ -24,15 +24,22 @@ export default function App () {
 
   return (
     <div className='app-shell'>
-      <h1>MINA TEACHER</h1>
-      <p className='subtitle'>Teacher / Student / Parent Portals</p>
+      <div className='app-header'>
+        <div className='mark'>M</div>
+        <div>
+          <h1>MINA TEACHER</h1>
+          <p className='subtitle'>Your personal AI teacher for every subject</p>
+        </div>
+      </div>
 
-      <HealthBanner health={health} />
+      <div className='app-body'>
+        <HealthBanner health={health} />
 
-      {!role && <RoleSelect onSelect={setRole} />}
-      {role === 'teacher' && <TeacherApp onBack={() => setRole(null)} />}
-      {role === 'student' && <StudentApp onBack={() => setRole(null)} />}
-      {role === 'parent' && <ParentApp onBack={() => setRole(null)} />}
+        {!role && <RoleSelect onSelect={setRole} />}
+        {role === 'teacher' && <TeacherApp onBack={() => setRole(null)} />}
+        {role === 'student' && <StudentApp onBack={() => setRole(null)} />}
+        {role === 'parent' && <ParentApp onBack={() => setRole(null)} />}
+      </div>
     </div>
   )
 }
@@ -52,7 +59,7 @@ function HealthBanner ({ health }) {
   return (
     <div className='card'>
       <div style={{ marginBottom: 6 }}>
-        Ollama AI engine:{' '}
+        AI engine:{' '}
         <span
           className={`status-pill ${ollamaOk ? 'status-ok' : 'status-bad'}`}
         >
@@ -80,27 +87,54 @@ function HealthBanner ({ health }) {
   )
 }
 
+const ROLES = [
+  {
+    id: 'teacher',
+    icon: '🍎',
+    color: 'var(--subject-math)',
+    title: "I'm a Teacher",
+    desc: 'Manage students, review progress, add materials'
+  },
+  {
+    id: 'student',
+    icon: '🎒',
+    color: 'var(--subject-korean)',
+    title: "I'm a Student",
+    desc: 'Learn lessons, practice speaking and writing'
+  },
+  {
+    id: 'parent',
+    icon: '🏡',
+    color: 'var(--subject-social_studies)',
+    title: "I'm a Parent",
+    desc: "See your child's progress and reports"
+  }
+]
+
 function RoleSelect ({ onSelect }) {
   return (
     <div>
-      <h2>Who are you?</h2>
-      <button className='primary' onClick={() => onSelect('teacher')}>
-        I'm a Teacher
-      </button>
-      <button
-        className='primary'
-        style={{ marginTop: 10 }}
-        onClick={() => onSelect('student')}
-      >
-        I'm a Student
-      </button>
-      <button
-        className='primary'
-        style={{ marginTop: 10 }}
-        onClick={() => onSelect('parent')}
-      >
-        I'm a Parent
-      </button>
+      <h2>Who's here today?</h2>
+      <div className='role-grid'>
+        {ROLES.map(r => (
+          <button
+            key={r.id}
+            className='role-card'
+            onClick={() => onSelect(r.id)}
+          >
+            <div
+              className='role-icon'
+              style={{ background: r.color, color: '#fff' }}
+            >
+              {r.icon}
+            </div>
+            <div className='role-text'>
+              <strong>{r.title}</strong>
+              <span>{r.desc}</span>
+            </div>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

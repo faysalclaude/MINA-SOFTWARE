@@ -3,9 +3,6 @@ import { db } from '../db.js'
 import { completeJson } from './ollamaClient.js'
 import { buildReferenceContext } from './referenceMaterials.js'
 
-// Korean elementary national curriculum (교육과정) subject set.
-// Grades 1-2 use the "integrated curriculum" (통합교과, 봄/여름/가을/겨울)
-// instead of separate science/social studies, matching the real standard.
 const SUBJECT_LABELS = {
   korean: '국어 (Korean Language)',
   math: '수학 (Math)',
@@ -13,12 +10,37 @@ const SUBJECT_LABELS = {
   social_studies: '사회 (Social Studies)',
   english: '영어 (English)',
   integrated_curriculum:
-    '통합교과 (Integrated Curriculum - Spring/Summer/Fall/Winter themes)'
+    '통합교과 (Integrated Curriculum - Spring/Summer/Fall/Winter themes)',
+  moral_education: '도덕 (Moral Education)',
+  practical_arts: '실과 (Practical Arts)',
+  computing: '컴퓨팅/코딩 (Computing & Coding)'
 }
 
 export function subjectsForGrade (grade) {
-  if (grade <= 2) return ['korean', 'math', 'integrated_curriculum']
-  return ['korean', 'math', 'science', 'social_studies', 'english']
+  if (grade <= 2) {
+    return ['korean', 'math', 'integrated_curriculum', 'computing']
+  }
+  if (grade <= 4) {
+    return [
+      'korean',
+      'math',
+      'science',
+      'social_studies',
+      'english',
+      'moral_education',
+      'computing'
+    ]
+  }
+  return [
+    'korean',
+    'math',
+    'science',
+    'social_studies',
+    'english',
+    'moral_education',
+    'practical_arts',
+    'computing'
+  ]
 }
 
 async function generateTopicsForSubject (subject, age, grade, referenceContext) {
@@ -57,12 +79,6 @@ Respond with ONLY a JSON array in this exact shape, nothing else:
   return topics
 }
 
-/**
- * Generates (or regenerates) a full multi-subject curriculum for one
- * student, one subject at a time. Subject failures don't abort the whole
- * run - a slow/unreliable model shouldn't leave a student with zero
- * subjects just because one call failed.
- */
 export async function generateCurriculumForStudent (studentId) {
   const student = db
     .prepare('SELECT * FROM students WHERE id = ?')
@@ -71,7 +87,7 @@ export async function generateCurriculumForStudent (studentId) {
 
   const subjects = subjectsForGrade(student.grade)
   const results = []
-  const referenceContext = buildReferenceContext(student.teacher_id)
+  const { promptText, usedTitles } = buildReferenceContext(student.teacher_id)
 
   for (const subject of subjects) {
     console.log(
@@ -84,7 +100,7 @@ export async function generateCurriculumForStudent (studentId) {
         subject,
         student.age,
         student.grade,
-        referenceContext
+        promptText
       )
     } catch (e) {
       console.error(
@@ -106,14 +122,14 @@ export async function generateCurriculumForStudent (studentId) {
         curriculumId
       )
       db.prepare(
-        "UPDATE curricula SET source = 'ai_generated', status = 'active' WHERE id = ?"
-      ).run(curriculumId)
+        "UPDATE curricula SET source = 'ai_generated', status = 'active', used_materials = ? WHERE id = ?"
+      ).run(JSON.stringify(usedTitles), curriculumId)
     } else {
       curriculumId = uuid()
       db.prepare(
-        `INSERT INTO curricula (id, student_id, subject, source, status)
-         VALUES (?, ?, ?, 'ai_generated', 'active')`
-      ).run(curriculumId, studentId, subject)
+        `INSERT INTO curricula (id, student_id, subject, source, status, used_materials)
+         VALUES (?, ?, ?, 'ai_generated', 'active', ?)`
+      ).run(curriculumId, studentId, subject, JSON.stringify(usedTitles))
     }
 
     const insertTopic = db.prepare(
@@ -134,7 +150,11 @@ export async function generateCurriculumForStudent (studentId) {
     })
 
     console.log(`[CURRICULUM] ${subject}: ${topics.length} topics saved`)
-    results.push({ subject, topicCount: topics.length })
+    results.push({
+      subject,
+      topicCount: topics.length,
+      usedMaterials: usedTitles
+    })
   }
 
   return results
@@ -159,6 +179,13 @@ export function getCurriculumForStudent (studentId) {
 
     const masteredCount = topics.filter(t => t.masteryScore >= 80).length
 
+    let usedMaterials = []
+    try {
+      usedMaterials = c.used_materials ? JSON.parse(c.used_materials) : []
+    } catch {
+      usedMaterials = []
+    }
+
     return {
       subject: c.subject,
       subjectLabel: SUBJECT_LABELS[c.subject] || c.subject,
@@ -166,7 +193,8 @@ export function getCurriculumForStudent (studentId) {
       status: c.status,
       topics,
       masteredCount,
-      totalCount: topics.length
+      totalCount: topics.length,
+      usedMaterials
     }
   })
 }

@@ -1,95 +1,260 @@
+/* ===== Design tokens ===== */
+:root {
+  --bg: #eef2ed;
+  --surface: #ffffff;
+  --surface-sunken: #f7f9f6;
+  --header: #1f4b3f;
+  --header-ink: #faf6ec;
+  --ink: #1c2b24;
+  --ink-muted: #5b6b63;
+  --line: #dce3da;
+  --accent: #1f4b3f;
+  --accent-ink: #faf6ec;
+  --warm: #e2572b;
+  --success-bg: #e4f1e6;
+  --success-ink: #1d6b3b;
+  --warn-bg: #fdf0e4;
+  --warn-ink: #a15a1d;
+  --danger-bg: #fbe9e5;
+  --danger-ink: #b03a24;
+
+  --subject-korean: #1f4b3f;
+  --subject-integrated_curriculum: #3e7c59;
+  --subject-math: #2a4d8f;
+  --subject-english: #b8860b;
+  --subject-science: #0e7c86;
+  --subject-social_studies: #b0472b;
+  --subject-moral_education: #6b4e9e;
+  --subject-practical_arts: #8a6d3f;
+  --subject-computing: #6a4c93;
+
+  --radius: 10px;
+  --radius-lg: 16px;
+}
+
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #f4f5f7;
-  color: #1a1a1a;
+  padding: 0;
 }
 
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic',
+    'Apple SD Gothic Neo', 'Noto Sans KR', 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== App shell ===== */
 .app-shell {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
-  background: #fff;
-  padding: 24px 20px 40px;
+  background: var(--surface-sunken);
+  padding-bottom: 40px;
 }
 
-h1 {
-  font-size: 22px;
-  margin: 0 0 4px;
+.app-header {
+  background: var(--header);
+  color: var(--header-ink);
+  padding: 22px 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-header .mark {
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--header-ink);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.app-header h1 {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.app-header .subtitle {
+  font-size: 12.5px;
+  color: #c8d6cc;
+  margin: 2px 0 0;
+}
+
+.app-body {
+  padding: 20px;
 }
 
 h2 {
-  font-size: 18px;
-  margin: 24px 0 12px;
+  font-size: 17px;
+  font-weight: 700;
+  margin: 4px 0 14px;
+  color: var(--ink);
 }
 
 .subtitle {
-  color: #666;
-  font-size: 14px;
-  margin: 0 0 24px;
+  color: var(--ink-muted);
+  font-size: 13.5px;
+  margin: 0 0 20px;
 }
 
+/* ===== Cards ===== */
 .card {
-  border: 1px solid #e2e2e2;
-  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
   padding: 16px;
   margin-bottom: 12px;
 }
 
+.card.subject-card {
+  border-left-width: 4px;
+  border-left-style: solid;
+}
+
+/* ===== Forms ===== */
 .field {
   margin-bottom: 14px;
 }
 
 .field label {
   display: block;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   margin-bottom: 6px;
-  color: #333;
+  color: var(--ink-muted);
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  padding: 11px 13px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
   font-size: 15px;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+/* ===== Buttons ===== */
+button {
+  font-family: inherit;
 }
 
 button.primary {
   width: 100%;
-  padding: 12px;
-  background: #2563eb;
-  color: #fff;
+  padding: 13px;
+  background: var(--accent);
+  color: var(--accent-ink);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+button.primary:hover {
+  opacity: 0.92;
 }
 
 button.primary:disabled {
-  background: #93b4f0;
+  background: #a9b8ae;
   cursor: not-allowed;
 }
 
 button.secondary {
   width: 100%;
-  padding: 10px;
-  background: transparent;
-  color: #2563eb;
-  border: 1px solid #2563eb;
-  border-radius: 8px;
+  padding: 11px;
+  background: var(--surface);
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius);
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   margin-top: 8px;
+  transition: background 0.15s ease;
 }
 
+button.secondary:hover {
+  background: var(--surface-sunken);
+}
+
+/* ===== Role select (hero moment) ===== */
+.role-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.role-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.role-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.role-card .role-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.role-card .role-text strong {
+  display: block;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.role-card .role-text span {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+
+/* ===== Status pills / badges ===== */
 .status-pill {
   display: inline-block;
   padding: 3px 10px;
@@ -99,30 +264,49 @@ button.secondary {
 }
 
 .status-ok {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--success-bg);
+  color: var(--success-ink);
 }
 
 .status-bad {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--danger-bg);
+  color: var(--danger-ink);
 }
 
+.subject-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.subject-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ===== Messages ===== */
 .error-box {
-  background: #fee2e2;
-  color: #991b1b;
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 13px;
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+  padding: 11px 13px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
   margin-bottom: 14px;
+  line-height: 1.5;
 }
 
+/* ===== Lists / rows ===== */
 .student-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
 }
 
 .student-row:last-child {
@@ -130,6 +314,47 @@ button.secondary {
 }
 
 .muted {
-  color: #888;
+  color: var(--ink-muted);
   font-size: 13px;
+}
+
+/* ===== Tabs ===== */
+.tab-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  border-bottom: 1.5px solid var(--line);
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  cursor: pointer;
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1.5px;
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ===== Progress bar ===== */
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
 }

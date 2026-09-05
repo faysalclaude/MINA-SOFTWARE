@@ -95,17 +95,15 @@ function ParentDashboard ({ student, onLogout }) {
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, margin: '16px 0' }}>
+      <div className='tab-row'>
         <button
-          className={tab === 'progress' ? 'primary' : 'secondary'}
-          style={{ width: 'auto', padding: '6px 14px', margin: 0 }}
+          className={`tab-btn ${tab === 'progress' ? 'active' : ''}`}
           onClick={() => setTab('progress')}
         >
           Progress
         </button>
         <button
-          className={tab === 'reports' ? 'primary' : 'secondary'}
-          style={{ width: 'auto', padding: '6px 14px', margin: 0 }}
+          className={`tab-btn ${tab === 'reports' ? 'active' : ''}`}
           onClick={() => setTab('reports')}
         >
           Reports

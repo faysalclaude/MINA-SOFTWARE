@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from './api.js'
+import { subjectColor, subjectIcon } from './subjectMeta.js'
 
 export default function TeacherApp ({ onBack }) {
   const [teacher, setTeacher] = useState(null)
@@ -182,35 +183,37 @@ function TeacherDashboard ({ teacher, onSwitch }) {
       </div>
       <p className='muted'>Logged in as {teacher.name}</p>
 
-      <div
-        style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}
-      >
+      <div className='tab-row'>
         <button
-          className={tab === 'roster' ? 'primary' : 'secondary'}
-          style={{ width: 'auto', padding: '6px 14px', margin: 0 }}
+          className={`tab-btn ${tab === 'roster' ? 'active' : ''}`}
           onClick={() => setTab('roster')}
         >
           Students
         </button>
         <button
-          className={tab === 'overview' ? 'primary' : 'secondary'}
-          style={{ width: 'auto', padding: '6px 14px', margin: 0 }}
+          className={`tab-btn ${tab === 'overview' ? 'active' : ''}`}
           onClick={() => setTab('overview')}
         >
           Class Overview
         </button>
         <button
-          className={tab === 'materials' ? 'primary' : 'secondary'}
-          style={{ width: 'auto', padding: '6px 14px', margin: 0 }}
+          className={`tab-btn ${tab === 'materials' ? 'active' : ''}`}
           onClick={() => setTab('materials')}
         >
-          Reference Materials
+          Materials
+        </button>
+        <button
+          className={`tab-btn ${tab === 'settings' ? 'active' : ''}`}
+          onClick={() => setTab('settings')}
+        >
+          Settings
         </button>
       </div>
 
       {tab === 'roster' && <Roster teacher={teacher} />}
       {tab === 'overview' && <ClassOverview teacher={teacher} />}
       {tab === 'materials' && <ReferenceMaterials teacher={teacher} />}
+      {tab === 'settings' && <Settings />}
     </div>
   )
 }
@@ -265,21 +268,30 @@ function ClassOverview ({ teacher }) {
               )}
             </div>
             {s.subjects.length > 0 && (
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: 10 }}>
                 {s.subjects.map(subj => {
                   const pct =
                     subj.totalCount > 0
                       ? Math.round((subj.masteredCount / subj.totalCount) * 100)
                       : 0
                   return (
-                    <div
-                      key={subj.subject}
-                      style={{ fontSize: 13, marginBottom: 4 }}
-                    >
-                      <span className='muted'>{subj.subjectLabel}: </span>
-                      <span style={{ color: colorFor(pct), fontWeight: 600 }}>
-                        {subj.masteredCount}/{subj.totalCount} ({pct}%)
+                    <div key={subj.subject} style={{ marginBottom: 6 }}>
+                      <span className='subject-badge'>
+                        <span
+                          className='subject-dot'
+                          style={{ background: subjectColor(subj.subject) }}
+                        />
+                        {subj.subjectLabel}
                       </span>
+                      <div className='progress-track' style={{ height: 6 }}>
+                        <div
+                          className='progress-fill'
+                          style={{
+                            width: `${pct}%`,
+                            background: subjectColor(subj.subject)
+                          }}
+                        />
+                      </div>
                     </div>
                   )
                 })}
@@ -470,6 +482,7 @@ function CurriculumOverview ({ student }) {
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
   const [openSubject, setOpenSubject] = useState(null)
+  const [lastGenInfo, setLastGenInfo] = useState(null)
 
   const load = () =>
     api
@@ -483,6 +496,7 @@ function CurriculumOverview ({ student }) {
   const handleGenerate = async () => {
     setGenerating(true)
     setError('')
+    setLastGenInfo(null)
     try {
       const { results } = await api.generateCurriculum(student.id)
       const failed = results.filter(r => r.error)
@@ -493,6 +507,7 @@ function CurriculumOverview ({ student }) {
           }`
         )
       }
+      setLastGenInfo(results)
       await load()
     } catch (e) {
       setError(e.message)
@@ -518,6 +533,29 @@ function CurriculumOverview ({ student }) {
       }}
     >
       {error && <div className='error-box'>{error}</div>}
+
+      {lastGenInfo && (
+        <div
+          style={{
+            fontSize: 12,
+            padding: '6px 10px',
+            borderRadius: 6,
+            marginBottom: 8,
+            background: lastGenInfo.some(r => r.usedMaterials?.length > 0)
+              ? '#dcfce7'
+              : '#f3f4f6',
+            color: lastGenInfo.some(r => r.usedMaterials?.length > 0)
+              ? '#166534'
+              : '#555'
+          }}
+        >
+          {lastGenInfo.some(r => r.usedMaterials?.length > 0)
+            ? `✅ MINA used these reference materials: ${[
+                ...new Set(lastGenInfo.flatMap(r => r.usedMaterials || []))
+              ].join(', ')}`
+            : 'ℹ️ No reference materials were used (none uploaded yet, or none exist for this teacher). Add some in the "Reference Materials" tab.'}
+        </div>
+      )}
 
       {curriculum.length === 0 && !generating && (
         <div>
@@ -554,18 +592,30 @@ function CurriculumOverview ({ student }) {
                 mastered {openSubject === subj.subject ? '▲' : '▼'}
               </div>
               {openSubject === subj.subject && (
-                <ol style={{ margin: '6px 0', paddingLeft: 20, fontSize: 13 }}>
-                  {subj.topics.map(t => (
-                    <li key={t.competencyCode} style={{ marginBottom: 6 }}>
-                      <strong>{t.title}</strong>{' '}
-                      <span className='muted'>
-                        (difficulty {t.difficulty}, mastery {t.masteryScore}
-                        /100)
-                      </span>
-                      <div className='muted'>{t.description}</div>
-                    </li>
-                  ))}
-                </ol>
+                <div>
+                  {subj.usedMaterials?.length > 0 && (
+                    <p
+                      className='muted'
+                      style={{ fontSize: 12, margin: '4px 0' }}
+                    >
+                      📎 Built using: {subj.usedMaterials.join(', ')}
+                    </p>
+                  )}
+                  <ol
+                    style={{ margin: '6px 0', paddingLeft: 20, fontSize: 13 }}
+                  >
+                    {subj.topics.map(t => (
+                      <li key={t.competencyCode} style={{ marginBottom: 6 }}>
+                        <strong>{t.title}</strong>{' '}
+                        <span className='muted'>
+                          (difficulty {t.difficulty}, mastery {t.masteryScore}
+                          /100)
+                        </span>
+                        <div className='muted'>{t.description}</div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
               )}
             </div>
           ))}
@@ -774,6 +824,25 @@ function AddMaterialForm ({ teacherId, onAdded, onCancel }) {
       <button className='secondary' onClick={onCancel}>
         Cancel
       </button>
+    </div>
+  )
+}
+function Settings () {
+  return (
+    <div>
+      <div className='card'>
+        <h2 style={{ marginTop: 0 }}>Backup</h2>
+        <p className='muted'>
+          Downloads the entire school's data — all teachers, students,
+          curricula, mastery scores, lessons, and reports — as one file. Keep it
+          somewhere safe. If this server's PC is ever replaced, copy this file
+          into the new server's <code>apps/server/data/</code> folder to restore
+          everything.
+        </p>
+        <a href={api.backupUrl()} style={{ textDecoration: 'none' }}>
+          <button className='primary'>⬇️ Download backup</button>
+        </a>
+      </div>
     </div>
   )
 }

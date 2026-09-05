@@ -149,3 +149,4 @@ function ensureColumn (table, column, definition) {
   }
 }
 ensureColumn('students', 'pin', "TEXT NOT NULL DEFAULT '0000'")
+ensureColumn('curricula', 'used_materials', 'TEXT')

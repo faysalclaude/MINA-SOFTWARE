@@ -1,0 +1,17 @@
+{
+  "name": "MINA TEACHER",
+  "short_name": "MINA",
+  "description": "Your personal AI teacher for every subject",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF6EC",
+  "theme_color": "#1F4B3F",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

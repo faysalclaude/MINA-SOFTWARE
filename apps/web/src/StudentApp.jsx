@@ -4,6 +4,7 @@ import PersonPicker from './PersonPicker.jsx'
 import LessonPlayer from './LessonPlayer.jsx'
 import SpeakingPractice from './SpeakingPractice.jsx'
 import WritingPractice from './WritingPractice.jsx'
+import { subjectColor, subjectIcon } from './subjectMeta.js'
 
 export default function StudentApp ({ onBack }) {
   const [picked, setPicked] = useState(null)
@@ -109,38 +110,53 @@ function StudentDashboard ({ student, onLogout }) {
 
       {curriculum &&
         curriculum.map(subj => (
-          <div key={subj.subject} className='card'>
+          <div
+            key={subj.subject}
+            className='card subject-card'
+            style={{ borderLeftColor: subjectColor(subj.subject) }}
+          >
             <div>
-              <strong>{subj.subjectLabel}</strong>
-              <div className='muted'>
+              <span className='subject-badge'>
+                <span aria-hidden='true'>{subjectIcon(subj.subject)}</span>{' '}
+                {subj.subjectLabel}
+              </span>
+              <div className='progress-track'>
+                <div
+                  className='progress-fill'
+                  style={{
+                    width: `${
+                      subj.totalCount
+                        ? Math.round(
+                            (subj.masteredCount / subj.totalCount) * 100
+                          )
+                        : 0
+                    }%`,
+                    background: subjectColor(subj.subject)
+                  }}
+                />
+              </div>
+              <div className='muted' style={{ marginTop: 6 }}>
                 {subj.masteredCount}/{subj.totalCount} topics mastered
               </div>
             </div>
-            <div
-              style={{
-                display: 'flex',
-                gap: 8,
-                marginTop: 10,
-                flexWrap: 'wrap'
-              }}
+            <button
+              className='primary'
+              style={{ marginTop: 12 }}
+              onClick={() => setPracticeSubject(subj.subject)}
             >
-              <button
-                className='primary'
-                style={{ width: 'auto', padding: '8px 14px' }}
-                onClick={() => setPracticeSubject(subj.subject)}
-              >
-                📖 Start learning
-              </button>
+              📖 Start learning
+            </button>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button
                 className='secondary'
-                style={{ width: 'auto', padding: '8px 14px', margin: 0 }}
+                style={{ flex: 1, margin: 0 }}
                 onClick={() => setSpeakingSubject(subj.subject)}
               >
                 🎤 Speaking
               </button>
               <button
                 className='secondary'
-                style={{ width: 'auto', padding: '8px 14px', margin: 0 }}
+                style={{ flex: 1, margin: 0 }}
                 onClick={() => setWritingSubject(subj.subject)}
               >
                 ✍️ Writing

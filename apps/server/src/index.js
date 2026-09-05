@@ -16,6 +16,7 @@ import { writingRouter } from './routes/writing.js'
 import { reportsRouter } from './routes/reports.js'
 import { analyticsRouter } from './routes/analytics.js'
 import { isOllamaRunning, CURRENT_MODEL } from './ai/ollamaClient.js'
+import { backupRouter } from './routes/backup.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = process.env.PORT || 4000
@@ -35,6 +36,7 @@ app.use('/api/speaking', speakingRouter)
 app.use('/api/writing', writingRouter)
 app.use('/api/reports', reportsRouter)
 app.use('/api/analytics', analyticsRouter)
+app.use('/api/backup', backupRouter)
 
 const webDist = path.join(__dirname, '..', '..', 'web', 'dist')
 app.use(express.static(webDist))

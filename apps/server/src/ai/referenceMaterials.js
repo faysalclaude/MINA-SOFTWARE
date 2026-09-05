@@ -3,8 +3,6 @@ import { db } from '../db.js'
 import { PDFParse } from 'pdf-parse'
 import mammoth from 'mammoth'
 
-// Keep prompts manageable for a small local model - we don't want a single
-// 80-page PDF to blow the context window and crowd out the actual request.
 const MAX_STORED_CHARS = 8000
 const MAX_PROMPT_CHARS_PER_MATERIAL = 1500
 
@@ -25,18 +23,28 @@ export async function extractText (materialType, fileBuffer, textNotes) {
   if (materialType === 'text_notes') {
     return (textNotes || '').slice(0, MAX_STORED_CHARS)
   }
-  // 'link' (and anything else): no automatic extraction is possible here -
-  // MINA has no internet-browsing tool, so it only ever sees the URL string
-  // itself plus whatever note the teacher writes, never the page's content.
   return null
 }
 
-export function saveMaterial ({ teacherId, title, materialType, extractedText, sourceUrl }) {
+export function saveMaterial ({
+  teacherId,
+  title,
+  materialType,
+  extractedText,
+  sourceUrl
+}) {
   const id = uuid()
   db.prepare(
     `INSERT INTO reference_materials (id, teacher_id, title, material_type, extracted_text, source_url)
      VALUES (?, ?, ?, ?, ?, ?)`
-  ).run(id, teacherId, title, materialType, extractedText || null, sourceUrl || null)
+  ).run(
+    id,
+    teacherId,
+    title,
+    materialType,
+    extractedText || null,
+    sourceUrl || null
+  )
   return id
 }
 
@@ -60,6 +68,10 @@ export function deleteMaterial (id) {
  * notes contribute real extracted text. Links only ever contribute their
  * URL string and the teacher's own note - never claimed page content,
  * since this offline model cannot browse the internet.
+ *
+ * Returns both the prompt text AND the plain list of material titles that
+ * were actually included, so callers can record/show "MINA used: X, Y"
+ * without anyone having to read the Korean output to guess.
  */
 export function buildReferenceContext (teacherId) {
   const materials = db
@@ -69,14 +81,25 @@ export function buildReferenceContext (teacherId) {
     )
     .all(teacherId)
 
-  if (materials.length === 0) return ''
+  if (materials.length === 0) return { promptText: '', usedTitles: [] }
 
   const blocks = materials.map(m => {
     if (m.materialType === 'link') {
-      return `Reference "${m.title}" (a link the teacher provided; content was NOT fetched): ${m.sourceUrl}\nTeacher's note about it: ${m.extractedText || '(none)'}`
+      return `Reference "${
+        m.title
+      }" (a link the teacher provided; content was NOT fetched): ${
+        m.sourceUrl
+      }\nTeacher's note about it: ${m.extractedText || '(none)'}`
     }
-    return `Reference "${m.title}" (${m.materialType}):\n${(m.extractedText || '').slice(0, MAX_PROMPT_CHARS_PER_MATERIAL)}`
+    return `Reference "${m.title}" (${m.materialType}):\n${(
+      m.extractedText || ''
+    ).slice(0, MAX_PROMPT_CHARS_PER_MATERIAL)}`
   })
 
-  return `\n\nThe teacher provided these reference materials — use them to inform the curriculum where relevant:\n${blocks.join('\n\n')}`
+  return {
+    promptText: `\n\nThe teacher provided these reference materials — use them to inform the curriculum where relevant:\n${blocks.join(
+      '\n\n'
+    )}`,
+    usedTitles: materials.map(m => m.title)
+  }
 }

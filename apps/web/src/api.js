@@ -17,7 +17,7 @@ async function request (path, options = {}) {
 
 export const api = {
   health: () => request('/system/health'),
-
+  backupUrl: () => BASE + '/backup',
   createTeacher: (name, schoolName, pin) =>
     request('/teachers', {
       method: 'POST',
