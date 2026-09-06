@@ -43,6 +43,13 @@ export function subjectsForGrade (grade) {
   ]
 }
 
+export function getSubjectsForGradeWithLabels (grade) {
+  return subjectsForGrade(grade).map(code => ({
+    code,
+    label: SUBJECT_LABELS[code] || code
+  }))
+}
+
 async function generateTopicsForSubject (subject, age, grade, referenceContext) {
   const label = SUBJECT_LABELS[subject] || subject
 
@@ -160,6 +167,122 @@ export async function generateCurriculumForStudent (studentId) {
   return results
 }
 
+/**
+ * Takes a teacher's own draft curriculum (free-typed text, one idea per
+ * line or a rough outline) for one subject, and asks MINA to review and
+ * structure it: fill in missing scaffolding (competency codes, difficulty
+ * ordering), flag gaps for this grade level, and note anything it added
+ * beyond what the teacher wrote. The teacher's content drives the result -
+ * MINA elaborates and organizes, it doesn't discard the teacher's intent.
+ */
+export async function reviewTeacherCurriculum (studentId, subject, draftText) {
+  const student = db
+    .prepare('SELECT * FROM students WHERE id = ?')
+    .get(studentId)
+  if (!student) throw new Error('Student not found')
+  if (!draftText || !draftText.trim())
+    throw new Error('Draft curriculum text is empty')
+
+  const label = SUBJECT_LABELS[subject] || subject
+
+  const system =
+    'You are an expert curriculum reviewer for Korean elementary schools, ' +
+    'helping a real teacher structure their own draft curriculum. Respect ' +
+    "the teacher's content and intent - your job is to organize and fill " +
+    'gaps, not replace their ideas with your own. You always respond with ' +
+    'ONLY a raw JSON object, no markdown fences, no commentary.'
+
+  const user = `Subject: ${label}. Grade ${student.grade}, age ${student.age}.
+
+The teacher wrote this draft curriculum (their own notes/outline, possibly
+informal or incomplete):
+"""
+${draftText.trim()}
+"""
+
+Turn this into a structured, ordered topic list, using the teacher's own
+topics as the foundation. You may:
+- Split a broad teacher topic into smaller teachable units
+- Reorder for a sensible foundational-to-advanced progression
+- Add at most 1-2 grade-appropriate topics ONLY if there's an obvious gap
+  the teacher likely just forgot, clearly noting this in reviewNotes
+
+Do NOT invent an entirely different curriculum - stay grounded in what the
+teacher actually wrote.
+
+Respond with ONLY a JSON object in this exact shape:
+{
+  "topics": [
+    {
+      "title": "short topic title",
+      "description": "1-2 sentence description",
+      "competencyCode": "short_snake_case_unique_id",
+      "difficulty": 1
+    }
+  ],
+  "reviewNotes": "2-4 sentences: note ordering choices, any gaps you filled or flagged, and anything the teacher should double check. Written to the teacher, in English."
+}`
+
+  const result = await completeJson(system, user, {
+    temperature: 0.4,
+    numPredict: 1200
+  })
+  if (
+    !result.topics ||
+    !Array.isArray(result.topics) ||
+    result.topics.length === 0
+  ) {
+    throw new Error('MINA could not structure this draft into topics')
+  }
+
+  const existing = db
+    .prepare('SELECT id FROM curricula WHERE student_id = ? AND subject = ?')
+    .get(studentId, subject)
+
+  let curriculumId
+  if (existing) {
+    curriculumId = existing.id
+    db.prepare('DELETE FROM curriculum_topics WHERE curriculum_id = ?').run(
+      curriculumId
+    )
+    db.prepare(
+      "UPDATE curricula SET source = 'teacher', status = 'ai_reviewed', review_notes = ? WHERE id = ?"
+    ).run(result.reviewNotes || '', curriculumId)
+  } else {
+    curriculumId = uuid()
+    db.prepare(
+      `INSERT INTO curricula (id, student_id, subject, source, status, review_notes)
+       VALUES (?, ?, ?, 'teacher', 'ai_reviewed', ?)`
+    ).run(curriculumId, studentId, subject, result.reviewNotes || '')
+  }
+
+  const insertTopic = db.prepare(
+    `INSERT INTO curriculum_topics
+       (id, curriculum_id, topic_order, title, description, competency_code, difficulty)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  )
+  result.topics.forEach((t, i) => {
+    insertTopic.run(
+      uuid(),
+      curriculumId,
+      i + 1,
+      t.title,
+      t.description,
+      t.competencyCode || `${subject}_${i + 1}`,
+      Number(t.difficulty) || 1
+    )
+  })
+
+  console.log(
+    `[CURRICULUM] Teacher-authored ${subject} for ${student.name}: ${result.topics.length} topics, AI-reviewed`
+  )
+
+  return {
+    topicCount: result.topics.length,
+    reviewNotes: result.reviewNotes || ''
+  }
+}
+
 export function getCurriculumForStudent (studentId) {
   const curricula = db
     .prepare('SELECT * FROM curricula WHERE student_id = ?')
@@ -194,7 +317,8 @@ export function getCurriculumForStudent (studentId) {
       topics,
       masteredCount,
       totalCount: topics.length,
-      usedMaterials
+      usedMaterials,
+      reviewNotes: c.review_notes || ''
     }
   })
 }

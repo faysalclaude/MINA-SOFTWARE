@@ -483,6 +483,7 @@ function CurriculumOverview ({ student }) {
   const [error, setError] = useState('')
   const [openSubject, setOpenSubject] = useState(null)
   const [lastGenInfo, setLastGenInfo] = useState(null)
+  const [showTeacherForm, setShowTeacherForm] = useState(false)
 
   const load = () =>
     api
@@ -557,16 +558,33 @@ function CurriculumOverview ({ student }) {
         </div>
       )}
 
-      {curriculum.length === 0 && !generating && (
+      {curriculum.length === 0 && !generating && !showTeacherForm && (
         <div>
           <p className='muted'>
-            No curriculum yet for {student.name}. If you don't upload one, MINA
-            will build a full grade-appropriate one automatically.
+            No curriculum yet for {student.name}. MINA can build one
+            automatically, or you can write your own and have MINA review it.
           </p>
           <button className='primary' onClick={handleGenerate}>
             Generate curriculum with MINA
           </button>
+          <button
+            className='secondary'
+            onClick={() => setShowTeacherForm(true)}
+          >
+            ✏️ Write my own curriculum instead
+          </button>
         </div>
+      )}
+
+      {showTeacherForm && (
+        <TeacherCurriculumForm
+          student={student}
+          onDone={() => {
+            setShowTeacherForm(false)
+            load()
+          }}
+          onCancel={() => setShowTeacherForm(false)}
+        />
       )}
 
       {generating && (
@@ -576,7 +594,7 @@ function CurriculumOverview ({ student }) {
         </p>
       )}
 
-      {curriculum.length > 0 && (
+      {curriculum.length > 0 && !showTeacherForm && (
         <div>
           {curriculum.map(subj => (
             <div key={subj.subject} style={{ marginBottom: 8 }}>
@@ -589,7 +607,11 @@ function CurriculumOverview ({ student }) {
                 }
               >
                 {subj.subjectLabel} — {subj.masteredCount}/{subj.totalCount}{' '}
-                mastered {openSubject === subj.subject ? '▲' : '▼'}
+                mastered{' '}
+                {subj.source === 'teacher' && (
+                  <span className='muted'>(your draft, AI-reviewed)</span>
+                )}{' '}
+                {openSubject === subj.subject ? '▲' : '▼'}
               </div>
               {openSubject === subj.subject && (
                 <div>
@@ -599,6 +621,18 @@ function CurriculumOverview ({ student }) {
                       style={{ fontSize: 12, margin: '4px 0' }}
                     >
                       📎 Built using: {subj.usedMaterials.join(', ')}
+                    </p>
+                  )}
+                  {subj.reviewNotes && (
+                    <p
+                      className='muted'
+                      style={{
+                        fontSize: 12,
+                        margin: '4px 0',
+                        fontStyle: 'italic'
+                      }}
+                    >
+                      💬 MINA's review: {subj.reviewNotes}
                     </p>
                   )}
                   <ol
@@ -626,8 +660,107 @@ function CurriculumOverview ({ student }) {
           >
             Regenerate curriculum
           </button>
+          <button
+            className='secondary'
+            onClick={() => setShowTeacherForm(true)}
+          >
+            ✏️ Write my own for a subject
+          </button>
         </div>
       )}
+    </div>
+  )
+}
+
+function TeacherCurriculumForm ({ student, onDone, onCancel }) {
+  const [subjects, setSubjects] = useState([])
+  const [subject, setSubject] = useState('')
+  const [draftText, setDraftText] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [reviewNotes, setReviewNotes] = useState(null)
+
+  useEffect(() => {
+    api
+      .getSubjectsForGrade(student.grade)
+      .then(list => {
+        setSubjects(list)
+        if (list.length > 0) setSubject(list[0].code)
+      })
+      .catch(e => setError(e.message))
+  }, [student.grade])
+
+  const submit = async () => {
+    if (!draftText.trim()) {
+      setError('Write at least a rough outline before submitting.')
+      return
+    }
+    setSubmitting(true)
+    setError('')
+    try {
+      const result = await api.submitTeacherCurriculum(
+        student.id,
+        subject,
+        draftText
+      )
+      setReviewNotes(result.reviewNotes)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (reviewNotes !== null) {
+    return (
+      <div className='card'>
+        <h2 style={{ marginTop: 0 }}>Saved ✔</h2>
+        <p className='muted' style={{ fontStyle: 'italic' }}>
+          MINA's review: {reviewNotes}
+        </p>
+        <button className='primary' onClick={onDone}>
+          Done
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className='card'>
+      <h2 style={{ marginTop: 0 }}>Write your own curriculum</h2>
+      <p className='muted'>
+        Type your own topic outline for one subject (one idea per line is fine —
+        rough notes are OK). MINA will organize it into ordered topics and
+        review it for gaps, without replacing your content.
+      </p>
+      {error && <div className='error-box'>{error}</div>}
+      <div className='field'>
+        <label>Subject</label>
+        <select value={subject} onChange={e => setSubject(e.target.value)}>
+          {subjects.map(s => (
+            <option key={s.code} value={s.code}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className='field'>
+        <label>Your draft curriculum</label>
+        <textarea
+          rows={8}
+          placeholder={
+            'e.g.\nAddition and subtraction within 100\nMultiplication tables 2-5\nSimple word problems with money\n...'
+          }
+          value={draftText}
+          onChange={e => setDraftText(e.target.value)}
+        />
+      </div>
+      <button className='primary' disabled={submitting} onClick={submit}>
+        {submitting ? 'MINA is reviewing...' : 'Submit for MINA to review'}
+      </button>
+      <button className='secondary' onClick={onCancel}>
+        Cancel
+      </button>
     </div>
   )
 }

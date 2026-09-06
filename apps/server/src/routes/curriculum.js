@@ -2,15 +2,13 @@ import { Router } from 'express'
 import { db } from '../db.js'
 import {
   generateCurriculumForStudent,
-  getCurriculumForStudent
+  getCurriculumForStudent,
+  reviewTeacherCurriculum,
+  getSubjectsForGradeWithLabels
 } from '../ai/curriculumEngine.js'
 
 export const curriculumRouter = Router()
 
-// Triggers MINA to generate (or regenerate) a full multi-subject
-// curriculum for one student. This calls the local AI model once per
-// subject, so it can take anywhere from ~30 seconds to a few minutes
-// depending on the server's hardware.
 curriculumRouter.post('/generate', async (req, res) => {
   const { studentId } = req.body
   if (!studentId)
@@ -28,6 +26,35 @@ curriculumRouter.post('/generate', async (req, res) => {
     console.error('[CURRICULUM] Generation failed:', e.message)
     res.status(500).json({ error: e.message })
   }
+})
+
+curriculumRouter.post('/teacher-submit', async (req, res) => {
+  const { studentId, subject, draftText } = req.body
+  if (!studentId || !subject || !draftText) {
+    return res
+      .status(400)
+      .json({ error: 'studentId, subject, and draftText are required' })
+  }
+
+  const student = db
+    .prepare('SELECT id FROM students WHERE id = ?')
+    .get(studentId)
+  if (!student) return res.status(404).json({ error: 'Student not found' })
+
+  try {
+    const result = await reviewTeacherCurriculum(studentId, subject, draftText)
+    res.json(result)
+  } catch (e) {
+    console.error('[CURRICULUM] Teacher-submit review failed:', e.message)
+    res.status(500).json({ error: e.message })
+  }
+})
+
+curriculumRouter.get('/subjects', (req, res) => {
+  const grade = Number(req.query.grade)
+  if (!grade)
+    return res.status(400).json({ error: 'grade query param is required' })
+  res.json(getSubjectsForGradeWithLabels(grade))
 })
 
 curriculumRouter.get('/', (req, res) => {

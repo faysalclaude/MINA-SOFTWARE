@@ -73,6 +73,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ studentId })
     }),
+  getSubjectsForGrade: grade => request(`/curriculum/subjects?grade=${grade}`),
+  submitTeacherCurriculum: (studentId, subject, draftText) =>
+    request('/curriculum/teacher-submit', {
+      method: 'POST',
+      body: JSON.stringify({ studentId, subject, draftText })
+    }),
 
   getNextLesson: (studentId, subject) =>
     request(`/lessons/next?studentId=${studentId}&subject=${subject}`),
