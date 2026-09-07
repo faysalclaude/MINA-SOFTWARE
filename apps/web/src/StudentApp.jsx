@@ -5,12 +5,14 @@ import LessonPlayer from './LessonPlayer.jsx'
 import SpeakingPractice from './SpeakingPractice.jsx'
 import WritingPractice from './WritingPractice.jsx'
 import { subjectColor, subjectIcon } from './subjectMeta.js'
+import DiagnosticQuiz from './DiagnosticQuiz.jsx'
 
 export default function StudentApp ({ onBack }) {
   const [picked, setPicked] = useState(null)
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [student, setStudent] = useState(null)
+  const [diagnosticSubject, setDiagnosticSubject] = useState(null)
 
   if (student) {
     return (
@@ -73,6 +75,7 @@ function StudentDashboard ({ student, onLogout }) {
   const [practiceSubject, setPracticeSubject] = useState(null)
   const [speakingSubject, setSpeakingSubject] = useState(null)
   const [writingSubject, setWritingSubject] = useState(null)
+  const [diagnosticSubject, setDiagnosticSubject] = useState(null)
 
   useEffect(() => {
     api
@@ -146,6 +149,15 @@ function StudentDashboard ({ student, onLogout }) {
             >
               📖 Start learning
             </button>
+            {subj.masteredCount === 0 && (
+              <button
+                className='secondary'
+                style={{ marginTop: 8 }}
+                onClick={() => setDiagnosticSubject(subj.subject)}
+              >
+                ⚡ Already know some of this? Take a quick check
+              </button>
+            )}
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button
                 className='secondary'
@@ -196,6 +208,23 @@ function StudentDashboard ({ student, onLogout }) {
             writingSubject
           }
           onClose={() => setWritingSubject(null)}
+        />
+      )}
+      {diagnosticSubject && (
+        <DiagnosticQuiz
+          student={student}
+          subject={diagnosticSubject}
+          subjectLabel={
+            curriculum.find(s => s.subject === diagnosticSubject)
+              ?.subjectLabel || diagnosticSubject
+          }
+          onClose={() => {
+            setDiagnosticSubject(null)
+            api
+              .getCurriculum(student.id)
+              .then(setCurriculum)
+              .catch(() => {})
+          }}
         />
       )}
     </div>

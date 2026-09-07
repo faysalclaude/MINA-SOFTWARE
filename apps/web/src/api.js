@@ -104,6 +104,14 @@ export const api = {
       body: JSON.stringify({ studentId, topicId, prompt, submission })
     }),
 
+  getDiagnosticQuiz: (studentId, subject) =>
+    request(`/diagnostic/quiz?studentId=${studentId}&subject=${subject}`),
+  submitDiagnosticQuiz: (diagnosticId, studentId, answers) =>
+    request('/diagnostic/submit', {
+      method: 'POST',
+      body: JSON.stringify({ diagnosticId, studentId, answers })
+    }),
+
   listMaterials: teacherId => request(`/materials?teacherId=${teacherId}`),
   addMaterial: async formData => {
     const res = await fetch(BASE + '/materials', {

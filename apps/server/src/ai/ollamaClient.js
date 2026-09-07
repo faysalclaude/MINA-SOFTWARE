@@ -65,7 +65,9 @@ export async function complete (systemPrompt, userPrompt, options = {}) {
         temperature: options.temperature ?? 0.7,
         // Small local models default to a short context/generation length
         // that's fine for a quiz question but cuts off a real explanation
-        // partway through. Give lesson-style calls more room.
+        // partway through. Give lesson-style calls more room. Korean text
+        // also costs noticeably more tokens per word than English, so
+        // these need to be generous.
         num_predict: options.numPredict ?? 800,
         num_ctx: options.numCtx ?? 4096
       }
@@ -97,6 +99,18 @@ export async function completeJson (systemPrompt, userPrompt, options = {}) {
   try {
     return JSON.parse(cleaned)
   } catch (e) {
+    // The model's response was cut off before finishing (hit numPredict,
+    // or just rambled too long). Try to salvage it by closing whatever
+    // string/object/array was left open, rather than failing the whole
+    // request - a partial-but-valid lesson beats none.
+    const repaired = repairTruncatedJson(cleaned)
+    if (repaired !== null) {
+      try {
+        return JSON.parse(repaired)
+      } catch {
+        // fall through to the original error below
+      }
+    }
     throw new Error(
       `Model did not return valid JSON: ${e.message} | raw: ${cleaned.slice(
         0,
@@ -104,6 +118,46 @@ export async function completeJson (systemPrompt, userPrompt, options = {}) {
       )}`
     )
   }
+}
+
+/**
+ * Best-effort repair for JSON truncated mid-generation: closes an
+ * unterminated string, then closes any objects/arrays that were left
+ * open, in the correct order. Returns null if the input doesn't look
+ * salvageable at all (e.g. empty, or broken before any structure formed).
+ */
+function repairTruncatedJson (text) {
+  if (!text || (text[0] !== '{' && text[0] !== '[')) return null
+
+  let inString = false
+  let escapeNext = false
+  const stack = []
+
+  for (const ch of text) {
+    if (escapeNext) {
+      escapeNext = false
+      continue
+    }
+    if (ch === '\\' && inString) {
+      escapeNext = true
+      continue
+    }
+    if (ch === '"') {
+      inString = !inString
+      continue
+    }
+    if (inString) continue
+
+    if (ch === '{' || ch === '[') stack.push(ch)
+    else if (ch === '}' || ch === ']') stack.pop()
+  }
+
+  let repaired = text
+  if (inString) repaired += '"'
+  for (let i = stack.length - 1; i >= 0; i--) {
+    repaired += stack[i] === '{' ? '}' : ']'
+  }
+  return repaired
 }
 
 export const CURRENT_MODEL = MODEL

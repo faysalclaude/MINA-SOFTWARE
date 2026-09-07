@@ -1,11 +1,11 @@
 import { v4 as uuid } from 'uuid'
 import { db } from '../db.js'
-import { completeJson } from './ollamaClient.js'
+import { complete, completeJson } from './ollamaClient.js'
 import { buildReferenceContext } from './referenceMaterials.js'
 
 const MASTERY_THRESHOLD = 80
 
-function getMastery (studentId, competencyCode) {
+export function getMastery (studentId, competencyCode) {
   const row = db
     .prepare(
       'SELECT mastery_score FROM student_mastery WHERE student_id = ? AND competency_code = ?'
@@ -14,7 +14,7 @@ function getMastery (studentId, competencyCode) {
   return row ? row.mastery_score : 0
 }
 
-function upsertMastery (studentId, competencyCode, score) {
+export function upsertMastery (studentId, competencyCode, score) {
   db.prepare(
     `INSERT INTO student_mastery (student_id, competency_code, mastery_score, last_updated)
      VALUES (?, ?, ?, datetime('now'))
@@ -86,77 +86,25 @@ export async function generateLesson (studentId, topic) {
     }
   }
 
-  const system =
-    'You are MINA, a warm and patient real classroom teacher for a Korean ' +
-    'elementary school student. You never just state a fact and move on — ' +
-    "you actually TEACH: you hook the student's interest, explain the idea " +
-    'in simple steps, walk through worked examples, and check understanding, ' +
-    'the way a good human teacher would in a real lesson. ' +
-    'You always respond with ONLY a raw JSON object, no markdown fences, no commentary.'
-
   const referenceContext = buildReferenceContext(student.teacher_id)
 
-  const user = `Student: age ${student.age}, grade ${student.grade}.
-Topic: "${topic.title}" — ${topic.description}
-${adaptiveNote}
-${referenceContext}
+  // Split into two smaller calls instead of one big JSON blob. Korean text
+  // costs far more tokens per word than English, and a small local model
+  // asked for a long teaching passage AND a structured quiz in one
+  // response frequently got cut off mid-JSON. Each call below only has to
+  // finish a much shorter, simpler response, which is far more reliable -
+  // and grounding the quiz in the actual generated teaching text (instead
+  // of writing both blind, in parallel) also makes the quiz match the
+  // lesson better.
+  const teaching = await generateTeachingText(
+    student,
+    topic,
+    adaptiveNote,
+    referenceContext
+  )
+  const quiz = await generateQuizForTeaching(student, topic, teaching)
 
-Write a full, real lesson in Korean — not a short summary. Structure the
-"teaching" field as these clearly labeled sections, each with real content
-(this should read like an actual lesson a teacher would deliver over several
-minutes, roughly 350-500 words total):
-
-1. 🌟 시작하기 (Hook) — a relatable, everyday situation or question that
-   connects to the student's own life, to get them curious about the topic.
-2. 📖 개념 설명 (Explain the concept) — explain the core idea in simple,
-   step-by-step language appropriate for this age. Break it into small
-   steps rather than one dense paragraph.
-3. ✏️ 예제로 배우기 (Worked example) — walk through at least one concrete
-   example slowly, step by step, showing the thinking process, not just the
-   final answer.
-4. 🔁 다시 한번! (Second example or practice walkthrough) — a second,
-   slightly different example or a mini practice walkthrough, reinforcing
-   the same idea a different way.
-5. 🎯 정리 (Summary) — a short, encouraging recap of the key takeaway in
-   1-2 sentences.
-
-Use the section headers exactly as given above (with the emoji), each on
-its own line, followed by the content for that section on the next
-line(s). Keep sentences short and warm, appropriate for a grade ${student.grade}
-Korean student. If reference materials were provided above, actually use
-their specific content/examples where relevant instead of generic material.
-
-After the teaching content, write 4 quiz questions in Korean testing
-understanding of this exact topic (not just recall of section 5's summary
-sentence - test the actual concept from sections 2-4).
-
-Respond with ONLY a JSON object in this exact shape, nothing else:
-{
-  "teaching": "the full structured Korean lesson text described above",
-  "quiz": [
-    {
-      "id": "q1",
-      "question": "Korean question text",
-      "questionType": "multiple_choice",
-      "options": ["Korean option A", "Korean option B", "Korean option C", "Korean option D"],
-      "correctAnswer": "must exactly match one of the options"
-    }
-  ]
-}
-Mix multiple_choice (4 options) and short_answer (options: null) question types.`
-
-  const result = await completeJson(system, user, {
-    temperature: 0.5,
-    numPredict: 1400
-  })
-  if (
-    !result.teaching ||
-    !Array.isArray(result.quiz) ||
-    result.quiz.length === 0
-  ) {
-    throw new Error('Model returned an incomplete lesson')
-  }
-
+  const result = { teaching, quiz }
   const lessonId = uuid()
   db.prepare(
     `INSERT INTO lessons (id, student_id, curriculum_topic_id, title, content, difficulty)
@@ -176,6 +124,99 @@ Mix multiple_choice (4 options) and short_answer (options: null) question types.
     difficulty: topic.difficulty,
     ...result
   }
+}
+
+async function generateTeachingText (
+  student,
+  topic,
+  adaptiveNote,
+  referenceContext
+) {
+  const system =
+    'You are MINA, a warm and patient real classroom teacher for a Korean ' +
+    'elementary school student. You never just state a fact and move on — ' +
+    "you actually TEACH: you hook the student's interest, explain the idea " +
+    'in simple steps, walk through worked examples, and check understanding, ' +
+    'the way a good human teacher would in a real lesson. Respond with ONLY ' +
+    'the lesson text itself, in Korean - no JSON, no markdown fences, no commentary.'
+
+  const user = `Student: age ${student.age}, grade ${student.grade}.
+Topic: "${topic.title}" — ${topic.description}
+${adaptiveNote}
+${referenceContext}
+
+Write a full, real lesson in Korean — not a short summary. Structure it as
+these clearly labeled sections, each with real content (this should read
+like an actual lesson a teacher would deliver over several minutes, roughly
+250-320 words total):
+
+1. 🌟 시작하기 (Hook) — a relatable, everyday situation or question that
+   connects to the student's own life, to get them curious about the topic.
+2. 📖 개념 설명 (Explain the concept) — explain the core idea in simple,
+   step-by-step language appropriate for this age.
+3. ✏️ 예제로 배우기 (Worked example) — walk through one concrete example
+   slowly, step by step.
+4. 🔁 다시 한번! (Second example) — a second, slightly different example,
+   reinforcing the same idea a different way.
+5. 🎯 정리 (Summary) — a short, encouraging recap in 1-2 sentences.
+
+Use the section headers exactly as given above (with the emoji), each on
+its own line, followed by the content for that section. Keep sentences
+short and warm, appropriate for a grade ${student.grade} Korean student. If
+reference materials were provided above, actually use their specific
+content/examples where relevant instead of generic material.`
+
+  const teaching = await complete(system, user, {
+    temperature: 0.5,
+    numPredict: 1400,
+    numCtx: 4096
+  })
+  if (!teaching || teaching.trim().length < 30) {
+    throw new Error(
+      'MINA could not generate the teaching content for this topic'
+    )
+  }
+  return teaching.trim()
+}
+
+async function generateQuizForTeaching (student, topic, teachingText) {
+  const system =
+    'You are MINA, writing a short comprehension quiz for a Korean ' +
+    'elementary student based on a lesson you just taught. Respond with ' +
+    'ONLY a raw JSON array, no markdown fences, no commentary.'
+
+  const user = `Grade ${student.grade} student. Topic: "${topic.title}".
+
+Here is the lesson content the student just read:
+"""
+${teachingText}
+"""
+
+Write 4 quiz questions in Korean testing understanding of THIS specific
+lesson content (not generic recall) - test the concept explanation and
+worked examples, not just the opening hook or closing summary line.
+
+Respond with ONLY a JSON array in this exact shape, nothing else:
+[
+  {
+    "id": "q1",
+    "question": "Korean question text",
+    "questionType": "multiple_choice",
+    "options": ["Korean option A", "Korean option B", "Korean option C", "Korean option D"],
+    "correctAnswer": "must exactly match one of the options"
+  }
+]
+Mix multiple_choice (4 options) and short_answer (options: null) question types.`
+
+  const quiz = await completeJson(system, user, {
+    temperature: 0.5,
+    numPredict: 900,
+    numCtx: 4096
+  })
+  if (!Array.isArray(quiz) || quiz.length === 0) {
+    throw new Error('MINA could not generate quiz questions for this topic')
+  }
+  return quiz
 }
 
 /** Strips correct answers before a lesson/quiz is sent to the browser. */
