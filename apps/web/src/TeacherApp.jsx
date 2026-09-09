@@ -308,6 +308,7 @@ function Roster ({ teacher }) {
   const [showAdd, setShowAdd] = useState(false)
   const [error, setError] = useState('')
   const [expandedId, setExpandedId] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null)
 
   const refresh = () =>
     api
@@ -340,10 +341,7 @@ function Roster ({ teacher }) {
               <button
                 className='secondary'
                 style={{ width: 'auto', padding: '6px 12px' }}
-                onClick={async () => {
-                  await api.deleteStudent(s.id)
-                  refresh()
-                }}
+                onClick={() => setConfirmDelete(s)}
               >
                 Remove
               </button>
@@ -367,6 +365,76 @@ function Roster ({ teacher }) {
           onCancel={() => setShowAdd(false)}
         />
       )}
+
+      {confirmDelete && (
+        <ConfirmDeleteStudent
+          student={confirmDelete}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirmed={async () => {
+            await api.deleteStudent(confirmDelete.id)
+            setConfirmDelete(null)
+            refresh()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function ConfirmDeleteStudent ({ student, onCancel, onConfirmed }) {
+  const [typedName, setTypedName] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const matches = typedName.trim() === student.name
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 60
+      }}
+      onClick={onCancel}
+    >
+      <div
+        className='card'
+        style={{ maxWidth: 380, margin: '0 20px' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <h2 style={{ marginTop: 0, color: 'var(--danger-ink)' }}>
+          Remove {student.name}?
+        </h2>
+        <p className='muted'>
+          This permanently deletes {student.name}'s entire record — curriculum,
+          mastery scores, every lesson, quiz, speaking/writing attempt, and
+          parent reports. This cannot be undone (unless you have a backup from
+          the Settings tab).
+        </p>
+        <div className='field'>
+          <label>Type "{student.name}" to confirm</label>
+          <input
+            value={typedName}
+            onChange={e => setTypedName(e.target.value)}
+          />
+        </div>
+        <button
+          className='primary'
+          style={{ background: matches ? 'var(--danger-ink)' : undefined }}
+          disabled={!matches || deleting}
+          onClick={async () => {
+            setDeleting(true)
+            await onConfirmed()
+          }}
+        >
+          {deleting ? 'Removing...' : `Yes, permanently remove ${student.name}`}
+        </button>
+        <button className='secondary' onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
     </div>
   )
 }
@@ -804,6 +872,8 @@ function ReferenceMaterials ({ teacher }) {
               className='secondary'
               style={{ width: 'auto', padding: '6px 12px' }}
               onClick={async () => {
+                if (!window.confirm(`Remove reference material "${m.title}"?`))
+                  return
                 await api.deleteMaterial(m.id)
                 refresh()
               }}
