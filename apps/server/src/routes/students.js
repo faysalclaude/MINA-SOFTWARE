@@ -4,8 +4,6 @@ import { db } from '../db.js'
 
 export const studentsRouter = Router()
 
-// Add a student to a teacher's roster, with the student's own login PIN,
-// and optionally a linked parent account (name + PIN) in the same step.
 studentsRouter.post('/', (req, res) => {
   const { teacherId, name, age, grade, paceHint, pin, parentName, parentPin } =
     req.body
@@ -39,9 +37,6 @@ studentsRouter.post('/', (req, res) => {
     .json({ id, teacherId, name, age, grade, paceHint: paceHint || 'average' })
 })
 
-// List a teacher's students. Deliberately does NOT include the pin - this
-// endpoint is also used pre-login (student/parent picking their name from
-// a list), so it must stay safe to show before authentication.
 studentsRouter.get('/', (req, res) => {
   const { teacherId } = req.query
   if (!teacherId)
@@ -57,7 +52,6 @@ studentsRouter.get('/', (req, res) => {
   res.json(rows)
 })
 
-// Student login - matches the student's own PIN.
 studentsRouter.post('/:id/login', (req, res) => {
   const { pin } = req.body
   const student = db
@@ -72,6 +66,28 @@ studentsRouter.post('/:id/login', (req, res) => {
 
   const { pin: _pin, ...safe } = student
   res.json(safe)
+})
+
+// Teacher resets a student's PIN if they forgot it. Requires no
+// verification of the old PIN by design - only a logged-in teacher can
+// reach this screen in the app, and a real school needs this to be quick.
+studentsRouter.post('/:id/reset-pin', (req, res) => {
+  const { newPin } = req.body
+  if (!newPin || String(newPin).length < 4) {
+    return res.status(400).json({ error: 'newPin must be at least 4 digits' })
+  }
+
+  const student = db
+    .prepare('SELECT id FROM students WHERE id = ?')
+    .get(req.params.id)
+  if (!student) return res.status(404).json({ error: 'Student not found' })
+
+  db.prepare('UPDATE students SET pin = ? WHERE id = ?').run(
+    String(newPin),
+    req.params.id
+  )
+  console.log(`[STUDENTS] PIN reset for student ${req.params.id}`)
+  res.json({ ok: true })
 })
 
 studentsRouter.delete('/:id', (req, res) => {

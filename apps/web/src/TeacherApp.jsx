@@ -309,6 +309,7 @@ function Roster ({ teacher }) {
   const [error, setError] = useState('')
   const [expandedId, setExpandedId] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [managingPin, setManagingPin] = useState(null)
 
   const refresh = () =>
     api
@@ -341,6 +342,13 @@ function Roster ({ teacher }) {
               <button
                 className='secondary'
                 style={{ width: 'auto', padding: '6px 12px' }}
+                onClick={() => setManagingPin(s)}
+              >
+                🔑 PIN
+              </button>
+              <button
+                className='secondary'
+                style={{ width: 'auto', padding: '6px 12px' }}
                 onClick={() => setConfirmDelete(s)}
               >
                 Remove
@@ -363,6 +371,13 @@ function Roster ({ teacher }) {
             refresh()
           }}
           onCancel={() => setShowAdd(false)}
+        />
+      )}
+
+      {managingPin && (
+        <ManagePinModal
+          student={managingPin}
+          onClose={() => setManagingPin(null)}
         />
       )}
 
@@ -434,6 +449,156 @@ function ConfirmDeleteStudent ({ student, onCancel, onConfirmed }) {
         <button className='secondary' onClick={onCancel}>
           Cancel
         </button>
+      </div>
+    </div>
+  )
+}
+
+function ManagePinModal ({ student, onClose }) {
+  const [parent, setParent] = useState(undefined) // undefined = loading, null = none, object = exists
+  const [error, setError] = useState('')
+  const [studentPin, setStudentPin] = useState('')
+  const [parentName, setParentName] = useState('')
+  const [parentPin, setParentPin] = useState('')
+  const [savedMsg, setSavedMsg] = useState('')
+
+  useEffect(() => {
+    api
+      .getParent(student.id)
+      .then(setParent)
+      .catch(e => setError(e.message))
+  }, [student.id])
+
+  const resetStudentPin = async () => {
+    if (studentPin.length < 4)
+      return setError('Student PIN must be at least 4 digits.')
+    setError('')
+    try {
+      await api.resetStudentPin(student.id, studentPin)
+      setSavedMsg(`${student.name}'s PIN updated.`)
+      setStudentPin('')
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  const addOrResetParentPin = async () => {
+    if (parentPin.length < 4)
+      return setError('Parent PIN must be at least 4 digits.')
+    setError('')
+    try {
+      if (parent) {
+        await api.resetParentPin(student.id, parentPin)
+        setSavedMsg('Parent PIN updated.')
+      } else {
+        if (!parentName.trim()) return setError("Enter the parent's name.")
+        await api.addParent(student.id, parentName.trim(), parentPin)
+        setSavedMsg('Parent account created.')
+        setParent({ name: parentName.trim() })
+      }
+      setParentPin('')
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 60
+      }}
+      onClick={onClose}
+    >
+      <div
+        className='card'
+        style={{ maxWidth: 380, margin: '0 20px' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <h2 style={{ margin: 0 }}>{student.name}'s Logins</h2>
+          <button
+            className='secondary'
+            style={{ width: 'auto', padding: '4px 10px', margin: 0 }}
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
+
+        {error && <div className='error-box'>{error}</div>}
+        {savedMsg && (
+          <div
+            style={{
+              background: 'var(--success-bg)',
+              color: 'var(--success-ink)',
+              padding: 10,
+              borderRadius: 8,
+              fontSize: 13,
+              marginBottom: 12
+            }}
+          >
+            ✔ {savedMsg}
+          </div>
+        )}
+
+        <h3 style={{ marginBottom: 6 }}>Student PIN</h3>
+        <div className='field'>
+          <label>Set a new PIN</label>
+          <input
+            value={studentPin}
+            onChange={e => setStudentPin(e.target.value)}
+            placeholder='e.g. 1234'
+          />
+        </div>
+        <button className='primary' onClick={resetStudentPin}>
+          Update student PIN
+        </button>
+
+        <h3 style={{ marginTop: 20, marginBottom: 6 }}>Parent account</h3>
+        {parent === undefined && <p className='muted'>Loading...</p>}
+        {parent !== undefined && (
+          <div>
+            {parent ? (
+              <p className='muted'>
+                Parent: {parent.name}. Set a new PIN below if they forgot it.
+              </p>
+            ) : (
+              <>
+                <p className='muted'>No parent account yet.</p>
+                <div className='field'>
+                  <label>Parent name</label>
+                  <input
+                    value={parentName}
+                    onChange={e => setParentName(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+            <div className='field'>
+              <label>{parent ? 'New parent PIN' : 'Parent PIN'}</label>
+              <input
+                value={parentPin}
+                onChange={e => setParentPin(e.target.value)}
+                placeholder='e.g. 5678'
+              />
+            </div>
+            <button className='primary' onClick={addOrResetParentPin}>
+              {parent ? 'Update parent PIN' : 'Create parent account'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

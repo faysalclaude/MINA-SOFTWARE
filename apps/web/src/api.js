@@ -61,6 +61,24 @@ export const api = {
     }),
   deleteStudent: id => request(`/students/${id}`, { method: 'DELETE' }),
 
+  resetStudentPin: (id, newPin) =>
+    request(`/students/${id}/reset-pin`, {
+      method: 'POST',
+      body: JSON.stringify({ newPin })
+    }),
+
+  getParent: studentId => request(`/parents?studentId=${studentId}`),
+  addParent: (studentId, name, pin) =>
+    request('/parents', {
+      method: 'POST',
+      body: JSON.stringify({ studentId, name, pin })
+    }),
+  resetParentPin: (studentId, newPin) =>
+    request(`/parents/${studentId}/reset-pin`, {
+      method: 'POST',
+      body: JSON.stringify({ newPin })
+    }),
+
   loginParent: (studentId, pin) =>
     request('/parents/login', {
       method: 'POST',
