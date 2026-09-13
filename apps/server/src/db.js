@@ -130,10 +130,21 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS tutor_conversations (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    used_web_lookup INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE INDEX IF NOT EXISTS idx_students_teacher ON students(teacher_id);
   CREATE INDEX IF NOT EXISTS idx_curricula_student ON curricula(student_id);
   CREATE INDEX IF NOT EXISTS idx_mastery_student ON student_mastery(student_id);
   CREATE INDEX IF NOT EXISTS idx_lessons_student ON lessons(student_id);
+    CREATE INDEX IF NOT EXISTS idx_tutor_conv_student ON tutor_conversations(student_id);
+    
 `)
 
 console.log('[DB] Schema ready at', dbPath)

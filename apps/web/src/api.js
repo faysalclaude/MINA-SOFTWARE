@@ -151,5 +151,12 @@ export const api = {
   listReports: studentId => request(`/reports?studentId=${studentId}`),
 
   classOverview: teacherId =>
-    request(`/analytics/class-overview?teacherId=${teacherId}`)
+    request(`/analytics/class-overview?teacherId=${teacherId}`),
+
+  askTutor: (studentId, question, history) =>
+    request('/tutor/ask', {
+      method: 'POST',
+      body: JSON.stringify({ studentId, question, history })
+    }),
+  getTutorHistory: studentId => request(`/tutor/history?studentId=${studentId}`)
 }

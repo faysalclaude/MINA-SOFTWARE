@@ -899,6 +899,66 @@ function CurriculumOverview ({ student }) {
           >
             ✏️ Write my own for a subject
           </button>
+          <TutorHistoryPanel student={student} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TutorHistoryPanel ({ student }) {
+  const [history, setHistory] = useState(null)
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (open && history === null) {
+      api
+        .getTutorHistory(student.id)
+        .then(setHistory)
+        .catch(e => setError(e.message))
+    }
+  }, [open, student.id, history])
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div
+        style={{ cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
+        onClick={() => setOpen(!open)}
+      >
+        ❓ Questions {student.name} has asked MINA {open ? '▲' : '▼'}
+      </div>
+      {open && (
+        <div style={{ marginTop: 8 }}>
+          {error && <div className='error-box'>{error}</div>}
+          {history === null && <p className='muted'>Loading...</p>}
+          {history && history.length === 0 && (
+            <p className='muted'>
+              {student.name} hasn't asked MINA any direct questions yet. This
+              updates whenever they use the "Ask MINA" chat.
+            </p>
+          )}
+          {history &&
+            history.map(h => (
+              <div
+                key={h.id}
+                style={{
+                  borderLeft: '3px solid var(--line)',
+                  paddingLeft: 10,
+                  marginBottom: 12,
+                  fontSize: 13
+                }}
+              >
+                <div style={{ fontWeight: 600 }}>Q: {h.question}</div>
+                <div className='muted' style={{ margin: '4px 0' }}>
+                  A: {h.answer}
+                </div>
+                <div className='muted' style={{ fontSize: 11 }}>
+                  {h.createdAt}
+                  {h.usedWebLookup ? ' · 🌐 used online lookup' : ''}
+                </div>
+              </div>
+            ))}
         </div>
       )}
     </div>

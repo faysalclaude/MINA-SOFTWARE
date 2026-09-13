@@ -3,7 +3,7 @@ import os from 'node:os'
 import {
   isOllamaRunning,
   listModels,
-  CURRENT_MODEL
+  getCurrentModel
 } from '../ai/ollamaClient.js'
 
 export const systemRouter = Router()
@@ -32,13 +32,17 @@ systemRouter.get('/health', async (req, res) => {
     }
   }
 
+  const currentModel = getCurrentModel()
   res.json({
     status: 'ok',
     ollama: {
       reachable: ollamaUp,
-      currentModel: CURRENT_MODEL,
-      modelPulled: models.includes(CURRENT_MODEL),
+      currentModel,
+      modelPulled: models.includes(currentModel),
       availableModels: models
+    },
+    hardware: {
+      totalRamGB: Math.round(os.totalmem() / 1024 ** 3)
     },
     network: {
       lanAddresses: getLanAddresses()

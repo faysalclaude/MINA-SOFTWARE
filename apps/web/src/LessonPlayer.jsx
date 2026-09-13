@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from './api.js'
+import AskMina from './AskMina.jsx'
 
 export default function LessonPlayer ({
   student,
@@ -57,6 +58,7 @@ export default function LessonPlayer ({
       setState('error')
     }
   }
+  const [showAskMina, setShowAskMina] = useState(false)
 
   return (
     <div
@@ -124,6 +126,9 @@ export default function LessonPlayer ({
             </p>
             <button className='primary' onClick={() => setState('quiz')}>
               I'm ready for the quiz
+            </button>
+            <button className='secondary' onClick={() => setShowAskMina(true)}>
+              ❓ Don't understand? Ask MINA
             </button>
           </div>
         )}
@@ -205,6 +210,9 @@ export default function LessonPlayer ({
               Continue
             </button>
           </div>
+        )}
+        {showAskMina && (
+          <AskMina student={student} onClose={() => setShowAskMina(false)} />
         )}
       </div>
     </div>

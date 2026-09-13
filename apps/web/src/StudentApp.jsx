@@ -6,6 +6,7 @@ import SpeakingPractice from './SpeakingPractice.jsx'
 import WritingPractice from './WritingPractice.jsx'
 import { subjectColor, subjectIcon } from './subjectMeta.js'
 import DiagnosticQuiz from './DiagnosticQuiz.jsx'
+import AskMina from './AskMina.jsx'
 
 export default function StudentApp ({ onBack }) {
   const [picked, setPicked] = useState(null)
@@ -76,6 +77,7 @@ function StudentDashboard ({ student, onLogout }) {
   const [speakingSubject, setSpeakingSubject] = useState(null)
   const [writingSubject, setWritingSubject] = useState(null)
   const [diagnosticSubject, setDiagnosticSubject] = useState(null)
+  const [showAskMina, setShowAskMina] = useState(false)
 
   useEffect(() => {
     api
@@ -94,13 +96,22 @@ function StudentDashboard ({ student, onLogout }) {
         }}
       >
         <h2 style={{ margin: 0 }}>Hi {student.name}!</h2>
-        <button
-          className='secondary'
-          style={{ width: 'auto', padding: '6px 12px' }}
-          onClick={onLogout}
-        >
-          Log out
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className='secondary'
+            style={{ width: 'auto', padding: '6px 12px', margin: 0 }}
+            onClick={() => setShowAskMina(true)}
+          >
+            ❓ Ask MINA
+          </button>
+          <button
+            className='secondary'
+            style={{ width: 'auto', padding: '6px 12px', margin: 0 }}
+            onClick={onLogout}
+          >
+            Log out
+          </button>
+        </div>
       </div>
 
       {error && <div className='error-box'>{error}</div>}
@@ -226,6 +237,9 @@ function StudentDashboard ({ student, onLogout }) {
               .catch(() => {})
           }}
         />
+      )}
+      {showAskMina && (
+        <AskMina student={student} onClose={() => setShowAskMina(false)} />
       )}
     </div>
   )

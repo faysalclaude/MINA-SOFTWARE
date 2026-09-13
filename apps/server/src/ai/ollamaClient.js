@@ -11,8 +11,79 @@
  * service.
  */
 
+import os from 'node:os'
+
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434'
-const MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:3b-instruct-q4_K_M'
+
+/**
+ * Picks a model tier based on the server machine's total RAM, so a school
+ * with a stronger PC automatically gets noticeably better answers without
+ * anyone having to know what "qwen2.5:7b" even means. A manual
+ * OLLAMA_MODEL environment variable always overrides this.
+ *
+ * accepts an optional byte count so this is unit-testable without needing
+ * to fake the OS.
+ */
+export function pickModelForHardware (totalBytes = os.totalmem()) {
+  const totalGB = totalBytes / 1024 ** 3
+  if (totalGB > 18) return 'qwen2.5:14b-instruct-q4_K_M'
+  if (totalGB > 10) return 'qwen2.5:7b-instruct-q4_K_M'
+  return 'qwen2.5:3b-instruct-q4_K_M'
+}
+
+let MODEL = process.env.OLLAMA_MODEL || pickModelForHardware()
+
+/** The model currently in use (may change once at startup after auto-detection). */
+export function getCurrentModel () {
+  return MODEL
+}
+
+/**
+ * Called once at server startup. If the teacher hasn't manually pinned a
+ * model via OLLAMA_MODEL, this detects RAM, picks the right tier, and
+ * pulls it automatically if it isn't already on the machine - so upgrading
+ * to a better PC later just means a bigger download on first boot, not any
+ * manual config.
+ */
+export async function ensureModelForHardware () {
+  const totalGB = Math.round(os.totalmem() / 1024 ** 3)
+
+  if (process.env.OLLAMA_MODEL) {
+    console.log(
+      `[OLLAMA] Detected ~${totalGB}GB RAM. Using manually configured model: ${MODEL}`
+    )
+    return
+  }
+  console.log(
+    `[OLLAMA] Detected ~${totalGB}GB RAM. Selected model tier: ${MODEL}`
+  )
+
+  const running = await isOllamaRunning()
+  if (!running) return // the existing startup banner already reports this clearly
+
+  try {
+    const models = await listModels()
+    if (models.some(m => m === MODEL)) return
+
+    console.log(
+      `[OLLAMA] ${MODEL} isn't pulled yet - downloading now (this can take several minutes on first run, larger models take longer)...`
+    )
+    const res = await fetch(`${OLLAMA_HOST}/api/pull`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: MODEL, stream: false })
+    })
+    if (res.ok) {
+      console.log(`[OLLAMA] ${MODEL} pulled successfully`)
+    } else {
+      console.error(
+        `[OLLAMA] Failed to pull ${MODEL}: HTTP ${res.status}. Falling back to whatever model is already installed, if any.`
+      )
+    }
+  } catch (e) {
+    console.error('[OLLAMA] Auto-pull check failed:', e.message)
+  }
+}
 
 /** True if the local Ollama server is reachable right now. */
 export async function isOllamaRunning () {
@@ -63,11 +134,6 @@ export async function complete (systemPrompt, userPrompt, options = {}) {
       ],
       options: {
         temperature: options.temperature ?? 0.7,
-        // Small local models default to a short context/generation length
-        // that's fine for a quiz question but cuts off a real explanation
-        // partway through. Give lesson-style calls more room. Korean text
-        // also costs noticeably more tokens per word than English, so
-        // these need to be generous.
         num_predict: options.numPredict ?? 800,
         num_ctx: options.numCtx ?? 4096
       }
@@ -99,10 +165,6 @@ export async function completeJson (systemPrompt, userPrompt, options = {}) {
   try {
     return JSON.parse(cleaned)
   } catch (e) {
-    // The model's response was cut off before finishing (hit numPredict,
-    // or just rambled too long). Try to salvage it by closing whatever
-    // string/object/array was left open, rather than failing the whole
-    // request - a partial-but-valid lesson beats none.
     const repaired = repairTruncatedJson(cleaned)
     if (repaired !== null) {
       try {
@@ -159,5 +221,3 @@ function repairTruncatedJson (text) {
   }
   return repaired
 }
-
-export const CURRENT_MODEL = MODEL

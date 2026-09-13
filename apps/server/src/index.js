@@ -15,9 +15,14 @@ import { speakingRouter } from './routes/speaking.js'
 import { writingRouter } from './routes/writing.js'
 import { reportsRouter } from './routes/reports.js'
 import { analyticsRouter } from './routes/analytics.js'
-import { isOllamaRunning, CURRENT_MODEL } from './ai/ollamaClient.js'
+import {
+  isOllamaRunning,
+  getCurrentModel,
+  ensureModelForHardware
+} from './ai/ollamaClient.js'
 import { backupRouter } from './routes/backup.js'
 import { diagnosticRouter } from './routes/diagnostic.js'
+import { tutorRouter } from './routes/tutor.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = process.env.PORT || 4000
@@ -39,6 +44,7 @@ app.use('/api/reports', reportsRouter)
 app.use('/api/analytics', analyticsRouter)
 app.use('/api/backup', backupRouter)
 app.use('/api/diagnostic', diagnosticRouter)
+app.use('/api/tutor', tutorRouter)
 
 const webDist = path.join(__dirname, '..', '..', 'web', 'dist')
 app.use(express.static(webDist))
@@ -89,7 +95,8 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(
     `  Ollama (AI engine): ${ollamaUp ? 'running ✔' : 'NOT running ✘'}`
   )
-  console.log(`  Model expected:     ${CURRENT_MODEL}`)
+  await ensureModelForHardware()
+  console.log(`  Model in use:       ${getCurrentModel()}`)
   if (!ollamaUp) {
     console.log('  -> Start Ollama on this machine before using AI features.')
     console.log(
